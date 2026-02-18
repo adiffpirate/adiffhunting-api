@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: recon-probe-urls
+  name: recon-probe-urls
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: recon-probe-urls
+  strategy:
+   type: Recreate
+  template:
+    metadata:
+      labels:
+        app: recon-probe-urls
+    spec:
+      containers:
+        - name: recon-probe-urls
+          image: adiffhunting-api/recon-probe-urls:DEV_IMAGE_TAG
+          env:
+            - name: DEBUG
+              value: "true"
+            - name: DGRAPH_ALPHA_HOST
+              value: "dgraph-alpha"
+            - name: DGRAPH_ALPHA_HTTP_PORT
+              value: "8080"
+            - name: SCAN_COOLDOWN
+              value: "30 minutes"
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              memory: 256Mi

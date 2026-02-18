@@ -1,0 +1,28 @@
+fullnameOverride: dgraph
+
+zero:
+  replicaCount: 1
+  persistence:
+    size: 3Gi
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 128Mi
+
+alpha:
+  replicaCount: 1
+  service:
+    type: NodePort
+  persistence:
+    size: 10Gi
+  extraFlags: -v=3 --badger "numgoroutines=1" --security "whitelist=0.0.0.0/0" --telemetry "sentry=false;"
+  resources:
+    requests:
+      cpu: 150m
+      memory: 4Gi
+    limits:
+      memory: 4Gi
+  startupProbe:
+    enabled: true
