@@ -30,10 +30,8 @@ $script_path/database_query.sh -o $query_result -t dql -q "
 	{
 		results(func: has(Url.value), orderasc: Url.randomSeed $(if [ -n "$args" ]; then echo ",$args"; fi))
 		@filter($(if [ -n "$filter" ]; then echo "$filter"; fi))
-		@cascade
 		{
-			Url.value,
-			Url.domain @filter(not eq(Domain.skipScans, true)) { Domain.value }
+			Url.value
 		}
 	}
 "
