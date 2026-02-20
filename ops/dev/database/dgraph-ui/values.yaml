@@ -1,0 +1,11 @@
+fullnameOverride: dgraph-ui
+
+replicaCount: 1
+service:
+  type: NodePort
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    memory: 512Mi

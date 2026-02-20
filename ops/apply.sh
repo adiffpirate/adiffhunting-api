@@ -57,6 +57,10 @@ helm upgrade --install dgraph dgraph/dgraph \
   --namespace $ADH_APPS_NAMESPACE --create-namespace \
   --values $GIT_ROOT_DIR/ops/$ADH_OPS_ENV/database/dgraph/values.yaml \
   --version '24.1.4' --set "image.tag=v25.2.0"
+# UI to interact with database
+helm upgrade --install dgraph-ui dgraph/ratel \
+  --namespace $ADH_APPS_NAMESPACE --create-namespace \
+  --values $GIT_ROOT_DIR/ops/$ADH_OPS_ENV/database/dgraph-ui/values.yaml
 
 # Only deploy observability on non-dev environments
 if [[ ! "$ADH_OPS_ENV" == "dev" ]]; then
@@ -94,3 +98,12 @@ done | {
     cat
   fi
 } | kubectl apply -n "$ADH_APPS_NAMESPACE" --force -f -
+
+printf '\n\n'
+echo 'All resources were applied'
+printf '\n'
+
+node_ip=$(kubectl get nodes --namespace $ADH_APPS_NAMESPACE -o jsonpath="{.items[0].status.addresses[0].address}")
+dgraph_ui_node_port=$(kubectl get --namespace $ADH_APPS_NAMESPACE -o jsonpath="{.spec.ports[0].nodePort}" services dgraph-ui)
+dgraph_alpha_node_port=$(kubectl get --namespace $ADH_APPS_NAMESPACE -o jsonpath="{.spec.ports[0].nodePort}" services dgraph-alpha)
+echo "Connect to UI database via: http://$node_ip:$dgraph_ui_node_port (set 'Dgraph Connection String' to 'http://$node_ip:$dgraph_alpha_node_port')"
