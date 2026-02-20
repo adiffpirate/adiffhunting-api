@@ -9,7 +9,7 @@ probe(){
 	local http_method_uppercase=$(echo -E "$http_method" | tr '[:lower:]' '[:upper:]')
 
 	# Run HTTPX and print its output as JSON Lines according to database schema
-	httpx -list $urls -silent -threads 1 -json -x $http_method \
+	httpx -x $http_method -list $urls -silent -threads 1 -json -include-response-header \
 	| while read -r line; do
 		# Skip HTML responses
 		if echo -E "$line" | jq -e '."content_type" == "text/html"' > /dev/null; then
