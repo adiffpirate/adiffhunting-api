@@ -11,17 +11,21 @@ probe(){
 	# Run HTTPX and print its output as JSON Lines according to database schema
 	httpx -list $urls -silent -threads 1 -json -x $http_method \
 	| while read -r line; do
-		# Save HttpResponse
+		# Skip HTML responses
+		if echo -E "$line" | jq -e '."content_type" == "text/html"' > /dev/null; then
+			$UTILS/_log.sh 'debug' 'Response is most likely not from an API. Skipping' "output=$line"
+			continue
+		fi
+		# Parse response to match HttpResponse database record
 		$UTILS/_log.sh 'debug' 'Parsing output' "output=$line"
 		echo -E "$line" | jq -c '{
-			value: ( .method + " " + .url ),
-			url: { value: .url },
-			method: .method,
+			value: ( (."status_code" | tostring) + " " + .method + " " + .url ),
 			statusCode: ."status_code",
-			category: .knowledgebase.PageType,
-			location: .location,
+			method: .method,
+			url: { value: .url },
 			contentType: ."content_type",
 			contentLength: ."content_length",
+			headerAllow: ((.header.allow // "") | split(", ")),
 			updatedAt: .timestamp
 		}' || $UTILS/_log.sh 'error' 'Error while parsing output' "output=$line"
 	done

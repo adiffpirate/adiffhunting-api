@@ -27,7 +27,8 @@ spec:
             - name: DGRAPH_ALPHA_HTTP_PORT
               value: "8080"
             - name: SCAN_COOLDOWN
-              value: "30 minutes"
+              value: "1 minute"
+              # value: "30 minutes"
           resources:
             requests:
               cpu: 250m

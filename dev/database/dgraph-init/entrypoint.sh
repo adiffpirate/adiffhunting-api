@@ -53,14 +53,14 @@ curl --no-progress-meter $DGRAPH_ALPHA_HOST:$DGRAPH_ALPHA_HTTP_PORT/admin/schema
 	type HttpResponse {
 		id: ID!
 		value: String! @id @search(by: [hash, regexp])
+		statusCode: Int @search
+		method: String @search(by: [hash, term])
 		url: Url @hasInverse(field: httpResponses)
 
-		method: String @search(by: [hash, term])
-		statusCode: Int @search
-		category: String @search(by: [hash, term])
-		location: String @search(by: [hash, regexp])
 		contentType: String @search(by: [hash, term])
 		contentLength: Int @search
+		headerAllow: [String] @search(by: [hash, regexp])
+
 		updatedAt: DateTime @search(by: [hour])
 	}
 ' | jq -c .
