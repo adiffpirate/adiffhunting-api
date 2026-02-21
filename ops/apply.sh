@@ -23,9 +23,11 @@ EPOCH_TIMESTAMP=$(date +%s)
 
 ADH_APPS_NAMESPACE='adh-api'
 ADH_OBSERVABILITY_NAMESPACE='observability'
+ADH_APPS_TEST_CRAPI_PATH='/tmp/adh-api-test-crapi'
+ADH_APPS_TEST_CRAPI_INTERNAL_DNS="crapi-web.$ADH_APPS_NAMESPACE"
 
 # Update local git repository
-# git pull
+git pull
 
 # Setup local cluster with docker registry when environment is DEV
 if [[ "$ADH_OPS_ENV" == "dev" ]]; then
@@ -49,6 +51,9 @@ if [[ "$ADH_OPS_ENV" == "dev" ]]; then
     docker push "$image_name"
   done
 fi
+
+# Get k8s node IP
+NODE_IP=$(kubectl get nodes --namespace $ADH_APPS_NAMESPACE -o jsonpath="{.items[0].status.addresses[0].address}")
 
 # Deploy database
 helm repo add dgraph https://charts.dgraph.io
@@ -80,6 +85,23 @@ if [[ ! "$ADH_OPS_ENV" == "dev" ]]; then
     --namespace $ADH_OBSERVABILITY_NAMESPACE --create-namespace \
     --values $GIT_ROOT_DIR/ops/$ADH_OPS_ENV/observability/loki/values.yaml \
     --version '6.28.0'
+else # Deploy test API if environment is dev
+  # Create limit range before installing crapi so default resources are applied to its pods
+  kubectl apply -n $ADH_APPS_NAMESPACE -f $GIT_ROOT_DIR/ops/$ADH_OPS_ENV/test/limitrange.yaml
+  # Install crapi with local chart (they don't publish)
+  if [ ! -d $ADH_APPS_TEST_CRAPI_PATH ]; then
+    git clone --branch v1.1.6 --depth 1 https://github.com/OWASP/crAPI $ADH_APPS_TEST_CRAPI_PATH
+    # Workaround to set namespace because they hardcoded
+    find "$ADH_APPS_TEST_CRAPI_PATH" -type f -exec sed -i "s|namespace: crapi|namespace: $ADH_APPS_NAMESPACE|" {} \;
+  fi
+  helm upgrade --install test-crapi $ADH_APPS_TEST_CRAPI_PATH/deploy/helm \
+    --namespace $ADH_APPS_NAMESPACE --create-namespace \
+    --values $GIT_ROOT_DIR/ops/$ADH_OPS_ENV/test/crapi/values.yaml
+  # Force local DNS to resolve crapi internal URL
+  if ! grep -q "$ADH_APPS_TEST_CRAPI_INTERNAL_DNS" /etc/hosts; then
+    printf '\n\nAsking for sudo permission to add testing API internal DNS on /etc/hosts\n'
+    sudo bash -c "echo '$NODE_IP $ADH_APPS_TEST_CRAPI_INTERNAL_DNS' >> /etc/hosts"
+  fi
 fi
 
 # Apply k8s decrypted manifests
@@ -103,7 +125,11 @@ printf '\n\n'
 echo 'All resources were applied'
 printf '\n'
 
-node_ip=$(kubectl get nodes --namespace $ADH_APPS_NAMESPACE -o jsonpath="{.items[0].status.addresses[0].address}")
 dgraph_ui_node_port=$(kubectl get --namespace $ADH_APPS_NAMESPACE -o jsonpath="{.spec.ports[0].nodePort}" services dgraph-ui)
 dgraph_alpha_node_port=$(kubectl get --namespace $ADH_APPS_NAMESPACE -o jsonpath="{.spec.ports[0].nodePort}" services dgraph-alpha)
-echo "Connect to UI database via: http://$node_ip:$dgraph_ui_node_port (set 'Dgraph Connection String' to 'http://$node_ip:$dgraph_alpha_node_port')"
+echo "Connect to UI database at http://$NODE_IP:$dgraph_ui_node_port (set 'Dgraph Connection String' to 'http://$NODE_IP:$dgraph_alpha_node_port')"
+if [[ "$ADH_OPS_ENV" == "dev" ]]; then
+  crapi_web_node_port=$(kubectl get --namespace $ADH_APPS_NAMESPACE -o jsonpath="{.spec.ports[0].nodePort}" services crapi-web)
+  mailhog_node_port=$(kubectl get --namespace $ADH_APPS_NAMESPACE -o jsonpath="{.spec.ports[0].nodePort}" services mailhog-web-ingress)
+  echo "Connect to crAPI (testing API) at http://$ADH_APPS_TEST_CRAPI_INTERNAL_DNS:$crapi_web_node_port and crAPI's Mailhog at http://$ADH_APPS_TEST_CRAPI_INTERNAL_DNS:$mailhog_node_port"
+fi
