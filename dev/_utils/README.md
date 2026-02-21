@@ -12,3 +12,22 @@ Count URLs
     }
 }'
 ```
+
+Delete all HttpResponses
+```sh
+./database_query.sh -o /dev/stdout -t dql -q '
+    upsert {
+      query {
+        q(func: type(HttpResponse)) {
+          v as uid
+        }
+      }
+
+      mutation {
+        delete {
+          uid(v) * * .
+        }
+      }
+    }
+'
+```
