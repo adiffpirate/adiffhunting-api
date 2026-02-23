@@ -28,12 +28,12 @@ fi
 
 # For each line
 $script_path/_log.sh 'info' 'Adding records into the database' "amount=$(echo "$RECORDS_LIST" | wc -l)"
-for record in $RECORDS_LIST; do
+echo "$RECORDS_LIST" | while read record; do
+	$script_path/_log.sh 'debug' 'Adding record into the database' "record=$record"
 	# Get record type and data
 	record_type="$(echo "$record" | jq -rc '.record_type')"
 	record_type_capitalized="${record_type^}"
-	record_type_uppercase="${record_type^^}"
-	record_type_lowercase="${record_type,,}"
+	record_type_lowercase="${record_type,}"
 	record_data="$(echo "$record" | jq -rc '.record_data')"
 	# Add record on database
 	$script_path/database_query.sh -q "

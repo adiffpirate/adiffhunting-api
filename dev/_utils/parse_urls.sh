@@ -15,7 +15,7 @@ trap '>&2 $script_path/_stacktrace.sh "$?" "$BASH_SOURCE" "$BASH_COMMAND" "$LINE
 
 REGEX_URL_PARSER='^((.*):\/\/)?([^\/?#]+)?([^?#]*)(\?([^#]*))?$'
 REGEX_IP_DOMAIN='^([0-9]{1,3}\.){3}[0-9]{1,3}(:[0-9]*)?$' # Allow port
-REGEX_VALID_DNS='^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}?$'
+REGEX_VALID_DNS='^([a-zA-Z0-9-]+\.)+[a-zA-Z-]{2,}'
 
 main(){
 	# Read input from stdin

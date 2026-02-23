@@ -6,10 +6,10 @@ TMP_DIR="$(mktemp -d)"
 probe(){
 	local urls=$1
 	local http_method=$2
-	local http_method_uppercase=$(echo -E "$http_method" | tr '[:lower:]' '[:upper:]')
+	local auth_file=$3
 
 	# Run HTTPX and print its output as JSON Lines according to database schema
-	httpx -x $http_method -list $urls -silent -threads 1 -json -include-response-header \
+	httpx -x=$http_method -list=$urls -threads=1 -secret-file="$auth_file" -silent -json -include-response-header \
 	| while read -r line; do
 		# Skip HTML responses
 		if echo -E "$line" | jq -e '."content_type" == "text/html"' > /dev/null; then
@@ -34,17 +34,21 @@ probe(){
 probe_and_save(){
 	local urls=$1
 	local http_method=$2
+	local auth_file=$3
 
-	# Probe and save responses on database, one at a time
-	probe $urls $http_method | while read -r line; do
-		$UTILS/_log.sh 'debug' 'Saving response on database' "response=$line"
-		$UTILS/database_query.sh -q "
-			mutation {
-				addHttpResponse(input: [$line], upsert: true){
-					httpResponse { value }
-				}
-			}
-		"
+	# Determine if records should be saved as anon or user (authenticated) requests
+	local database_record_type=""
+	if [ -f "$auth_file" ]; then
+		database_record_type='HttpResponseUser'
+	else
+		database_record_type='HttpResponseAnon'
+	fi
+
+	# Probe and save responses on database one at a time
+	probe "$urls" "$http_method" "$auth_file" | while read -r line; do
+		local database_record="$(jq -cn "{record_type: \"$database_record_type\", record_data: $line}")"
+		$UTILS/_log.sh 'debug' 'Saving response on database' "database_record=$database_record"
+		echo "$database_record" | $UTILS/database_add.sh
 	done
 }
 
@@ -89,10 +93,12 @@ while true; do
 		"
 	done
 
-	# Probe urls and save httpResponse on database
+	# Probe urls as anynomous and as user, saving http responses on database
 	for http_method in 'get' 'options'; do
-		$UTILS/_log.sh 'info' 'Running: HTTPX' "http_method=$(echo -E "$http_method" | tr '[:lower:]' '[:upper:]')" "urls=$urls_json"
+		$UTILS/_log.sh 'info' 'Running: HTTPX (Anonymous)' "http_method=$(echo -E "$http_method" | tr '[:lower:]' '[:upper:]')" "urls=$urls_json"
 		probe_and_save $urls $http_method
+		$UTILS/_log.sh 'info' 'Running: HTTPX (User)' "auth_file=:$API_TOKENS_FILE" "http_method=$(echo -E "$http_method" | tr '[:lower:]' '[:upper:]')" "urls=$urls_json"
+		probe_and_save $urls $http_method $API_TOKENS_FILE
 	done
 
 	$UTILS/op_end.sh

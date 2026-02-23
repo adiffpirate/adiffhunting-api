@@ -28,10 +28,20 @@ spec:
               value: "8080"
             - name: SCAN_COOLDOWN
               value: "1 minute"
-              # value: "30 minutes"
+            - name: API_TOKENS_FILE
+              value: /etc/config/api-tokens.yaml
+          volumeMounts:
+            - name: api-tokens
+              mountPath: /etc/config/api-tokens.yaml
+              subPath: api-tokens.yaml
+              readOnly: true
           resources:
             requests:
               cpu: 250m
               memory: 256Mi
             limits:
               memory: 256Mi
+      volumes:
+        - name: api-tokens
+          secret:
+            secretName: api-tokens

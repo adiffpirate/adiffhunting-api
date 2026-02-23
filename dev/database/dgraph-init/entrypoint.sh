@@ -28,7 +28,8 @@ curl --no-progress-meter $DGRAPH_ALPHA_HOST:$DGRAPH_ALPHA_HTTP_PORT/admin/schema
 
 		domain: Domain @hasInverse(field: urls)
 		path: Path @hasInverse(field: urls)
-		httpResponses: [HttpResponse] @hasInverse(field: url)
+		httpResponsesAnon: [HttpResponseAnon] @hasInverse(field: url)
+		httpResponsesUser: [HttpResponseUser] @hasInverse(field: url)
 
 		lastProbe: DateTime @search(by: [hour])
 		lastExploit: DateTime @search(by: [hour])
@@ -50,12 +51,28 @@ curl --no-progress-meter $DGRAPH_ALPHA_HOST:$DGRAPH_ALPHA_HTTP_PORT/admin/schema
 		urls: [Url] @hasInverse(field: path)
 	}
 
-	type HttpResponse {
+	# Stores anonymous non-authenticated requests
+	type HttpResponseAnon {
 		id: ID!
 		value: String! @id @search(by: [hash, regexp])
 		statusCode: Int @search
 		method: String @search(by: [hash, term])
-		url: Url @hasInverse(field: httpResponses)
+		url: Url @hasInverse(field: httpResponsesAnon)
+
+		contentType: String @search(by: [hash, term])
+		contentLength: Int @search
+		headerAllow: [String] @search(by: [hash, regexp])
+
+		updatedAt: DateTime @search(by: [hour])
+	}
+
+	# Stores user authenticated requests
+	type HttpResponseUser {
+		id: ID!
+		value: String! @id @search(by: [hash, regexp])
+		statusCode: Int @search
+		method: String @search(by: [hash, term])
+		url: Url @hasInverse(field: httpResponsesUser)
 
 		contentType: String @search(by: [hash, term])
 		contentLength: Int @search
